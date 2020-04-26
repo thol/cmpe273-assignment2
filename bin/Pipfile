@@ -8,6 +8,7 @@ pytest = "*"
 
 [packages]
 flask = "==1.1.1"
+marshmallow = "*"
 
 [requires]
 python_version = "3.8"
