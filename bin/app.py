@@ -290,6 +290,7 @@ def new_scantron(test_id):
     # print('request.args', request.args)
     # print('request.form', request.form)
     # print('request.files', request.files)
+
     # 'file' not in .. abort doesn't work PAINFUL only IN works (may be due to reuse of 'result')
     if 'file' in request.files:
         answer_str = str(request.files['file'].read(),'utf-8')
@@ -307,7 +308,65 @@ def new_scantron(test_id):
     else:
         abort(404)
 
-    # return jsonify({"test_id": test_id, "submission_id" : submission_id})
     return jsonify(submission_result)
 
 
+def build_test_answer_result(test_id):
+    result = {}
+
+    conn = sqlite3.connect('scantron.db')
+    c = conn.cursor()
+    query_result = '''
+        select tak.question_number, tak.answer_key
+        from test_answer_keys tak
+        where tak.test_id = ?
+    '''
+    query_tuple = (test_id,)
+    cursor = c.execute(query_result,query_tuple)
+    for row in cursor:
+        q_no = row[0]
+        result[q_no] = row[1]
+
+    return result
+
+def build_submission_data(test_id):
+    result = {}
+    result['submissions'] = [] 
+    conn = sqlite3.connect('scantron.db')
+    c = conn.cursor()
+    query_submission_meta = '''SELECT id FROM submissions where test_id = ?'''
+    query_tuple = (test_id,)
+    cursor = c.execute(query_submission_meta,query_tuple)
+    for row in cursor:
+        submission_id = row[0]
+        result['submissions'].append(build_submission_result(submission_id))
+    return result
+
+def get_test_submission_data(test_id):
+    test_data = {}
+    conn = sqlite3.connect('scantron.db')
+    c = conn.cursor()
+    query_test_meta = '''SELECT subject FROM tests where id = ?'''
+    query_tuple = (test_id,)
+    cursor = c.execute(query_test_meta,query_tuple)
+    for row in cursor:
+        subject = row[0]
+
+    test_data['test_id'] = test_id
+    test_data['subject'] = subject
+    test_data['answer_keys'] = build_test_answer_result(test_id)
+
+    submission_result = build_submission_data(test_id)
+    test_data.update(submission_result)
+
+    return test_data
+
+@app.route('/api/tests/<int:test_id>', methods=['GET'])
+def get_submissions(test_id):
+
+    if (test_id_exists(test_id)):
+        test_submission_data = get_test_submission_data(test_id)
+    else:
+        abort(404)
+
+    return jsonify(test_submission_data)
