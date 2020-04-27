@@ -13,6 +13,7 @@ cd bin
 
 ```
 pipenv install flask==1.1.1
+pipenv install marshmallow
 ```
 
 * Run application
